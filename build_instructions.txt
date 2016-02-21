@@ -1,0 +1,69 @@
+-Software and libraries used:
+
+ Python 2.6 x64
+ up to date sklearn / numpy / gensim
+ word2phrase (https://github.com/travisbrady/word2phrase/blob/master/word2phrase.py)
+ elasticsearch 2.0.0 (or similar with support for LMJM / BM25 similarity algorithms)
+ Counter for Python 2.6 (http://code.activestate.com/recipes/576611-counter-class/) renamed as mycounter.py
+ 
+-Data used:
+
+ CK12 books (http://www.ck12.org/user%3AanBkcmVjb3VydEBnbWFpbC5jb20./book/Concepts/?utm_medium=email&utm_source=share-content-share-this-flexbook%C2%AE-textbook)
+ Flashcards retrieved using the Quizlet API (several queries during Dec 15/ Jan 16), the search keywords mostly correspond to 8th exam topics (see train/topics.txt).
+ These files can be foud in /data and have the following format (search keyword, flashcard question and flashcard answer separated by tabs). 
+ The reason of having several files corresponds to several re-tries after API failing or change in the set of keywords. 
+ No information from training or test set was used during the data retrieval process. Also there is no need of further data or API calls in order to generate new predictions.
+ The original data files were zipped and added for reproducibility, they need to be extracted in the same directory.
+ 
+ The training/validation sets provided by the organization should reside in /data (They cannot be shared outside the competition so you should download them from Kaggle). 
+ I augmented the training set by including the aristo.csv file, which is a compilation
+ of 345 questions/answers manually merged from http://allenai.org/content/data/Aristo_Multi-state.zip and http://allenai.org/content/data/Regents.zip
+	 
+-Scripts:
+
+ genlemmas.py
+ Dedupes and generates lemmatized files from the flashcards and books data.
+ Listing of how train folder should look like after genlemmas.py execution:
+ 
+	 /train/
+	 07/01/2016  06:17       392,643,191 bigquiz.txt (quizlet flashcards)
+	 07/01/2016  22:43        81,069,226 bigquiz2.txt (quizlet flashcards)
+	 08/01/2016  09:34       494,383,330 bigquiz3.txt (quizlet flashcards)
+	 10/01/2016  17:11       120,850,240 bigquizlemma.txt (deduped bigquiz.txt after lemmatization)
+	 10/01/2016  19:48        18,170,621 bigquizlemma2.txt (deduped bigquiz2.txt after lemmatization)
+	 10/01/2016  20:02       180,042,639 bigquizlemma3.txt (deduped bigquiz3.txt after lemmatization)
+	 08/01/2016  10:52         3,513,169 CK12clean.txt (cleaned CK12 ebook)
+	 10/01/2016  17:11         2,411,097 CK12lemma.txt (cleaned CK12 ebook lemmatized)
+	 16/12/2015  08:54       320,695,054 requiz.txt (quizlet flashcards)
+	 16/12/2015  17:37       209,900,104 requiz2.txt (quizlet flashcards)
+	 17/12/2015  08:09        71,508,317 requiz3.txt (quizlet flashcards)
+	 23/12/2015  23:07       185,594,189 requizlemma.txt  (joined and deduped requiz.txt, requiz2.txt, requiz3.txt after lemmatization)
+	 05/01/2016  14:35             3,827 topics.txt (8th grade keywords used to query Quizlet API to download the flashcards)
+
+	 
+ genvocab.py
+ Extracts most common word bigrams and trigrams from the lemmatized training data and generates vocabulary file "quizletvocab3.pick"
+ 
+ trainw2v.py
+ Trains a word2vec model in model/word2vec_myck12_quizlet3_stem_23gram.model' using the lemmatized data. It seems that fuzzy matching for vocabulary expansion
+ improves the results. This script uses the vocab file extracted in the previous step
+ 
+ indexES.py
+ Creates a knowledge base in Elasticsearch based on the CK12 and Quizlet data (both lemmatized and original). 
+ The indexes are generated as following:
+ quizlets -> quizlet flashcards
+ quizlets_lemma -> lemmatized quizlet flashcards
+ qa -> CK12 books
+ qa_lemma -> CK12 lemmatized books
+ 
+ getfeatsESW2V.py
+ Generates IR and W2V features for the training and validation data
+ 
+ getfeatsESBM25.py
+ Generates IR features for the training and validation data (it needs a config change in elasticsearch.yml-> index.similarity.default.type: BM25)
+ 
+ getfeatsESLMJM.py
+ Generates IR features for the training and validation data (it needs a config change in elasticsearch.yml-> index.similarity.default.type: LMJelinekMercer)
+ 
+ combine_all.py
+ Trains a Logistic Regression model, performs both cross-validation (5-fold) and generates final submission. 
